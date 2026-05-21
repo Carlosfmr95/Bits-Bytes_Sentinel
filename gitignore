@@ -1,0 +1,46 @@
+# ── Credenciales y configuración sensible ────────────────────────────────────
+.env
+*.env
+!.env.example
+
+# ── Docker volumes / datos persistentes ──────────────────────────────────────
+postgres_data/
+n8n_data/
+gvm_data/
+openvas_data/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Backups generados durante el desarrollo ───────────────────────────────────
+*.bak
+*.orig

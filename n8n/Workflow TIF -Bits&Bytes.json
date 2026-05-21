@@ -1,0 +1,1037 @@
+{
+  "name": "Workflow Trabajo Integrador Final",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3b8720e9-ab20-41fd-91e3-0b79c2d55d6b",
+      "name": "▶ Ejecutar Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = n => String(n).padStart(2, '0');\n\n// Intentar leer el scan_id que mandó el dashboard via Webhook.\n// Si el workflow fue disparado por Manual Trigger o Schedule, este bloque\n// falla silenciosamente y se genera un ID propio.\nlet scan_id = null;\nlet webhook_target = null;\nlet webhook_scan_type = null;\n\ntry {\n  const wb   = $('Webhook - Dashboard').first().json;\n  const data = wb.body || wb;\n\n  if (data && data.scan_id) {\n    scan_id           = data.scan_id;\n    webhook_target    = data.target    || null;\n    webhook_scan_type = data.scan_type || null;\n  }\n} catch (e) {\n  // No viene del Webhook — es Manual o Schedule, sin problema\n}\n\n// Si no vino del Webhook, generar el ID propio (formato original)\nif (!scan_id) {\n  scan_id = `SCAN-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\n}\n\nreturn [{ json: { scan_id, webhook_target, webhook_scan_type } }];"
+      },
+      "id": "f3ee05c2-6f6f-4d4a-a5e0-c4de2503922b",
+      "name": "Generar Scan ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst ahora = new Date().toLocaleString('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' }).replace(' ','T');\nconst rows = [];\n\nfor (const h of (data.nmap_rows || [])) {\n  if (!h.host_ip) continue;\n  for (const p of (h.puertos || [])) {\n    rows.push({\n      scan_id:         data.scan_id,\n      fecha:           ahora,\n      host_ip:         h.host_ip,\n      herramienta:     'nmap',\n      severidad_label: p.severidad,\n      puerto:          String(p.puerto),\n      servicio:        p.servicio || null,\n      version:         p.version  || null,\n      nombre_vuln:     null,\n      cves:            null,\n      severidad_cvss:  null\n    });\n  }\n}\n\nfor (const v of (data.openvas_resultados || [])) {\n  rows.push({\n    scan_id:         data.scan_id,\n    fecha:           ahora,\n    host_ip:         v.host,\n    herramienta:     'openvas',\n    severidad_label: v.severidad_label,\n    puerto:          v.puerto  || null,\n    servicio:        null,\n    version:         null,\n    nombre_vuln:     v.nombre  || null,\n    cves:            (v.cves || []).join(',') || null,\n    severidad_cvss:  v.severidad_cvss || null\n  });\n}\n\nif (rows.length === 0) return [{ json: { __skip: true } }];\n\nreturn rows.map(r => ({ json: r }));"
+      },
+      "id": "d311e1d9-e47b-4321-8445-fc2ba64871a6",
+      "name": "Preparar filas para DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('📋 Generar Reporte Final2').first().json;\nconst ahora = new Date().toLocaleString('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' }).replace(' ','T');\n\nreturn [{\n  json: {\n    scan_id:        data.scan_id,\n    fecha:          ahora,\n    total_hosts:    (data.nmap_rows || []).length,\n    nmap_high:      data.resumen.nmap.high,\n    nmap_medium:    data.resumen.nmap.medium,\n    nmap_low:       data.resumen.nmap.low,\n    openvas_high:   data.resumen.openvas.high,\n    openvas_medium: data.resumen.openvas.medium,\n    openvas_low:    data.resumen.openvas.low\n  }\n}];"
+      },
+      "id": "a0881d84-739c-430c-b534-4618a95f3297",
+      "name": "Preparar Historial",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2960,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -624,
+        352
+      ],
+      "id": "598d5748-86af-495f-b1f0-28452f6cb69d",
+      "name": "Schedule Trigger2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://nmap-api:5000/scan/discovery",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"target\": \"192.168.100.0/24\" }",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "4d9b88f6-7fbe-43ff-b7c1-34f23dd8df15",
+      "name": "Nmap - Descubrir hosts activos2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -176,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst hostsUp = result.hosts_up || [];\n\nconst targets = hostsUp.filter(ip =>\n  ip !== '192.168.100.5' && ip !== '192.168.100.1'\n);\n\nif (targets.length === 0) {\n  return [{ json: { error: 'Sin hosts objetivo encontrados', hosts_encontrados: hostsUp } }];\n}\n\nreturn targets.map(ip => ({ json: { target_ip: ip } }));"
+      },
+      "id": "5d940516-e8bf-4e68-8bc6-2e8880259b37",
+      "name": "Preparar lista de targets2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://nmap-api:5000/scan/{{ $('Generar Scan ID').first().json.webhook_scan_type === 'full' ? 'full' : 'quick' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"target\": \"{{$json.target_ip}}\"}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "c00b3772-c758-4a94-bac0-428de76c66c2",
+      "name": "Nmap - Escanear puertos y servicios2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        272,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst ahora = new Date().toISOString();\nconst rows = [];\n\nfunction clasificar(servicio, puerto) {\n  const alto  = ['ftp','telnet','rlogin','rsh','vnc','ms-wbt-server'];\n  const medio = ['http','smtp','pop3','imap','snmp','netbios-ssn','mysql','postgresql'];\n  if (alto.includes(servicio))  return 'HIGH';\n  if (medio.includes(servicio)) return 'MEDIUM';\n  if (puerto < 1024)            return 'MEDIUM';\n  return 'LOW';\n}\n\nfor (const item of items) {\n  const scan  = item.json;\n  const hosts = scan.hosts || [];\n  for (const host of hosts) {\n    for (const port of (host.ports || [])) {\n      if (!port.open) continue;\n      rows.push({\n        scan_fecha:      ahora,\n        host_ip:         host.ip,\n        hostname:        host.hostname || 'N/A',\n        puerto:          port.port,\n        protocolo:       port.protocol,\n        servicio:        port.service || 'unknown',\n        version:         port.version || 'N/A',\n        severidad_label: clasificar(port.service, port.port)\n      });\n    }\n  }\n}\n\nif (rows.length === 0) {\n  return [{ json: { warning: 'Sin puertos abiertos encontrados' } }];\n}\n\nreturn rows.map(r => ({ json: r }));"
+      },
+      "id": "718d13a2-347b-46b8-b418-3ceeeb915539",
+      "name": "Parsear y Clasificar Resultados2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length === 1 && items[0].json.warning) {\n  return [{ json: { warning: items[0].json.warning, hosts: [] } }];\n}\n\nconst hostsMap = {};\nfor (const item of items) {\n  const r = item.json;\n  if (!hostsMap[r.host_ip]) {\n    hostsMap[r.host_ip] = {\n      host_ip:    r.host_ip,\n      hostname:   r.hostname || 'N/A',\n      scan_fecha: r.scan_fecha,\n      puertos:    [],\n      high: 0, medium: 0, low: 0\n    };\n  }\n  hostsMap[r.host_ip].puertos.push({\n    puerto:    r.puerto,\n    protocolo: r.protocolo,\n    servicio:  r.servicio,\n    version:   r.version,\n    severidad: r.severidad_label\n  });\n  if      (r.severidad_label === 'HIGH')   hostsMap[r.host_ip].high++;\n  else if (r.severidad_label === 'MEDIUM') hostsMap[r.host_ip].medium++;\n  else                                     hostsMap[r.host_ip].low++;\n}\n\nreturn Object.values(hostsMap).map(h => ({ json: h }));"
+      },
+      "id": "17cb69ae-5ce4-4e63-9030-b575c99f4b17",
+      "name": "Agregar Resultados Nmap1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gvm-api:5001/scan/start",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ target: $json.host_ip, name: 'AutoScan-' + $json.host_ip, scan_type: $('Generar Scan ID').first().json.webhook_scan_type || 'full' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c76580b5-55a1-4c9d-ab81-51d354d932e1",
+      "name": "OpenVAS - Iniciar Escaneo1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items\n  .filter(item => item.json.task_id)\n  .map(item => ({\n    json: {\n      task_id:   item.json.task_id,\n      report_id: item.json.report_id,\n      target_ip: item.json.target_ip,\n      scan_name: item.json.scan_name\n    }\n  }));"
+      },
+      "id": "141b7379-03eb-407e-ad75-c43b712197ea",
+      "name": "Guardar Task IDs1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://gvm-api:5001/scan/status/{{ $json.task_id }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "bd94ab59-74fb-4d24-84e2-432e85c43e8c",
+      "name": "OpenVAS - Verificar Estado1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1616,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://gvm-api:5001/reports/{{ $json.report_id }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "5df33f19-ae69-443c-86b2-0d1d49e42d3b",
+      "name": "OpenVAS - Obtener Reporte1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2064,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const openvasItems = $input.all();\nconst nmapItems = $('Agregar Resultados Nmap1').all();\nconst scan_id = $('Generar Scan ID').first().json.scan_id;\n\nconst ahora = new Date().toLocaleString('es-AR', {\n  timeZone: 'America/Argentina/Buenos_Aires',\n  dateStyle: 'full',\n  timeStyle: 'short'\n});\n\nlet nmapTotalHigh = 0, nmapTotalMedium = 0, nmapTotalLow = 0;\nlet secNmap = '';\n\nfor (const h of nmapItems.map(i => i.json)) {\n  nmapTotalHigh   += h.high   || 0;\n  nmapTotalMedium += h.medium || 0;\n  nmapTotalLow    += h.low    || 0;\n  secNmap += `### ${h.host_ip} (${h.hostname})\\n`;\n  secNmap += `| Puerto | Servicio | Versión | Riesgo |\\n|--------|----------|---------|--------|\\n`;\n  for (const p of (h.puertos || [])) {\n    const emoji = p.severidad === 'HIGH' ? '🔴' : p.severidad === 'MEDIUM' ? '🟡' : '🟢';\n    secNmap += `| ${p.puerto}/${p.protocolo} | ${p.servicio} | ${p.version} | ${emoji} ${p.severidad} |\\n`;\n  }\n  secNmap += '\\n';\n}\n\nconst openvasResultados = [];\nfor (const item of openvasItems) {\n  if (item.json.resultados) openvasResultados.push(...item.json.resultados);\n}\n\nlet ovasTotalHigh = 0, ovasTotalMedium = 0, ovasTotalLow = 0;\nlet secOvas = '';\n\nif (openvasResultados.length > 0) {\n  for (const v of openvasResultados) {\n    if      (v.severidad_label === 'HIGH')   ovasTotalHigh++;\n    else if (v.severidad_label === 'MEDIUM') ovasTotalMedium++;\n    else if (v.severidad_label === 'LOW')    ovasTotalLow++;\n  }\n  secOvas += `**Total:** ${openvasResultados.length}\\n\\n`;\n  secOvas += `| Severidad | Cantidad |\\n|-----------|----------|\\n`;\n  secOvas += `| 🔴 Alta | ${ovasTotalHigh} |\\n| 🟡 Media | ${ovasTotalMedium} |\\n| 🟢 Baja | ${ovasTotalLow} |\\n\\n`;\n  const top = openvasResultados.slice(0, 10);\n  secOvas += `#### Top vulnerabilidades\\n\\n| CVEs | Nombre | Host:Puerto | CVSS |\\n|------|--------|-------------|------|\\n`;\n  for (const v of top) {\n    const cves = (v.cves||[]).length > 0 ? v.cves.join(' ') : 'N/A';\n    const nombre = v.nombre.length > 50 ? v.nombre.slice(0,47)+'...' : v.nombre;\n    secOvas += `| ${cves} | ${nombre} | ${v.host}:${v.puerto} | ${v.severidad_cvss} |\\n`;\n  }\n} else {\n  secOvas = '*Sin resultados de OpenVAS disponibles.*\\n';\n}\n\nconst reporte = `# 🔒 Reporte de Escaneo de Vulnerabilidades\n\n**Grupo:** Bits & Bytes — Marín, Agustín · Muñoz, Carlos · Raia, Sofía  \n**Institución:** UTN FRM – Tecnicatura Universitaria en Programación  \n**Fecha:** ${ahora}  \n**Scan ID:** ${scan_id}  \n\n---\n\n## 📊 Resumen Ejecutivo\n\n| Herramienta | 🔴 Alto | 🟡 Medio | 🟢 Bajo |\n|-------------|---------|----------|--------|\n| Nmap | ${nmapTotalHigh} | ${nmapTotalMedium} | ${nmapTotalLow} |\n| OpenVAS | ${ovasTotalHigh} | ${ovasTotalMedium} | ${ovasTotalLow} |\n\n---\n\n## 🗺️ Resultados Nmap\n\n${secNmap || '*Sin resultados.*'}\n\n---\n\n## 🔍 Resultados OpenVAS\n\n${secOvas}\n\n---\n\n## 📋 Recomendaciones\n\n1. **Priorizar** remediación de vulnerabilidades con CVSS ≥ 7.0\n2. **Deshabilitar** servicios innecesarios (telnet, ftp, rlogin)\n3. **Aplicar parches** en todos los sistemas identificados\n4. **Revisar** configuraciones de servicios expuestos\n5. **Repetir** el escaneo después de aplicar correcciones\n\n---\n\n*Reporte generado automáticamente — Sistema de Escaneo Automatizado de Vulnerabilidades*\n`;\n\nreturn [{\n  json: {\n    reporte_markdown: reporte,\n    fecha: ahora,\n    scan_id,\n    nmap_rows: nmapItems.map(i => i.json),\n    openvas_resultados: openvasResultados,\n    resumen: {\n      nmap:    { high: nmapTotalHigh,  medium: nmapTotalMedium,  low: nmapTotalLow },\n      openvas: { high: ovasTotalHigh, medium: ovasTotalMedium, low: ovasTotalLow }\n    }\n  }\n}];"
+      },
+      "id": "e931cc5b-98ab-4e91-85da-5bc748bbc7cd",
+      "name": "📋 Generar Reporte Final2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "vulnerability_scans",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "host_ip",
+              "displayName": "host_ip",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "herramienta",
+              "displayName": "herramienta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "severidad_label",
+              "displayName": "severidad_label",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "puerto",
+              "displayName": "puerto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "version",
+              "displayName": "version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nombre_vuln",
+              "displayName": "nombre_vuln",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cves",
+              "displayName": "cves",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "severidad_cvss",
+              "displayName": "severidad_cvss",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scan_id",
+              "displayName": "scan_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5601a88e-ef4b-473e-8858-41e19cc1cdd3",
+      "name": "Guardar en PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2736,
+        544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "xwbjkiD9JnOIx5Sm",
+          "name": "PostgresSQL Scans"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "scan_history",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_hosts",
+              "displayName": "total_hosts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nmap_high",
+              "displayName": "nmap_high",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nmap_medium",
+              "displayName": "nmap_medium",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nmap_low",
+              "displayName": "nmap_low",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "openvas_high",
+              "displayName": "openvas_high",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "openvas_medium",
+              "displayName": "openvas_medium",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "openvas_low",
+              "displayName": "openvas_low",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scan_id",
+              "displayName": "scan_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8a363740-2489-49fa-a0b8-572d37e986c1",
+      "name": "Guardar Historial",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3184,
+        544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "xwbjkiD9JnOIx5Sm",
+          "name": "PostgresSQL Scans"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "start-scan",
+        "options": {
+          "responseCode": {
+            "values": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        544
+      ],
+      "id": "72c107ec-b0b5-436b-aecd-910f3206b477",
+      "name": "Webhook - Dashboard",
+      "webhookId": "6873eb6d-b5d3-4ab5-937a-3abe387cbdc0"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dashboard:5002/api/scans/{{ $('Generar Scan ID').first().json.scan_id }}/update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"processing\",\n  \"progress\": 90,\n  \"log\": \"[SYSTEM] Reporte generado, guardando en base de datos\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2512,
+        352
+      ],
+      "id": "88eb9f02-6ae0-446b-af85-18c2e7db8dad",
+      "name": "Notificación - Procesando"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dashboard:5002/api/scans/{{ $('Generar Scan ID').first().json.scan_id }}/update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"openvas_running\",\n  \"progress\": 60,\n  \"log\": \"[SYSTEM] En espera del análisis OpenVAS \"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1616,
+        288
+      ],
+      "id": "771febc2-82a4-4fa3-934e-6a28f643d608",
+      "name": "Notificación - Esperando a OpenVAS"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dashboard:5002/api/scans/{{ $('Generar Scan ID').first().json.scan_id }}/update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"openvas_running\",\n  \"progress\": 55,\n  \"log\": \"[OPENVAS] Tareas de escaneo creadas — iniciando análisis de vulnerabilidades\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1392,
+        288
+      ],
+      "id": "a5813c68-3491-434a-bad9-2d2db4559a6f",
+      "name": "Notificación - OpenVAS ejecutándose"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dashboard:5002/api/scans/{{ $('Generar Scan ID').first().json.scan_id }}/update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"discovering\",\n  \"progress\": 20,\n  \"log\": \"[NMAP] Hosts activos descubiertos, iniciando port scan\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        48,
+        256
+      ],
+      "id": "33ccbaea-6b1e-4a8d-8d0a-027da93e327a",
+      "name": "Notificación- Descubrimiento de puertos"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dashboard:5002/api/scans/{{ $('Generar Scan ID').first().json.scan_id }}/update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"completed\",\n  \"progress\": 100,\n  \"log\": \"[SYSTEM] Escaneo completado y guardado correctamente\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3408,
+        544
+      ],
+      "id": "eb83141b-6998-4710-812f-3713bdb9a248",
+      "name": "Notificación - Completado"
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "minutes"
+      },
+      "id": "94db523a-9843-47bc-88c0-6ee0c78347fc",
+      "name": "Esperar 5 minutos",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        544
+      ],
+      "webhookId": "f4a5b6c7-d8e9-0123-defa-456789012345"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ab0985a5-358e-48c8-a904-ec8a4de3a44c",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "Done",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1840,
+        544
+      ],
+      "id": "3454387b-9653-46b9-afe4-9177836bccaf",
+      "name": "¿Scan terminado?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://dashboard:5002/api/scans/{{ $('Generar Scan ID').first().json.scan_id }}/update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"openvas_running\",\n  \"progress\": 65,\n  \"log\": \"[OPENVAS] Análisis en progreso, verificando nuevamente en 5 minutos\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2064,
+        640
+      ],
+      "id": "89bf5ee1-0bed-4964-8152-a1c7e7b9318a",
+      "name": "Notificación - Verificación recurrente"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "▶ Ejecutar Manual": {
+      "main": [
+        [
+          {
+            "node": "Generar Scan ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Scan ID": {
+      "main": [
+        [
+          {
+            "node": "Nmap - Descubrir hosts activos2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar filas para DB": {
+      "main": [
+        [
+          {
+            "node": "Guardar en PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Historial": {
+      "main": [
+        [
+          {
+            "node": "Guardar Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Generar Scan ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nmap - Descubrir hosts activos2": {
+      "main": [
+        [
+          {
+            "node": "Notificación- Descubrimiento de puertos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preparar lista de targets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar lista de targets2": {
+      "main": [
+        [
+          {
+            "node": "Nmap - Escanear puertos y servicios2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nmap - Escanear puertos y servicios2": {
+      "main": [
+        [
+          {
+            "node": "Parsear y Clasificar Resultados2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear y Clasificar Resultados2": {
+      "main": [
+        [
+          {
+            "node": "Agregar Resultados Nmap1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregar Resultados Nmap1": {
+      "main": [
+        [
+          {
+            "node": "OpenVAS - Iniciar Escaneo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenVAS - Iniciar Escaneo1": {
+      "main": [
+        [
+          {
+            "node": "Guardar Task IDs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Task IDs1": {
+      "main": [
+        [
+          {
+            "node": "Notificación - OpenVAS ejecutándose",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Esperar 5 minutos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenVAS - Verificar Estado1": {
+      "main": [
+        [
+          {
+            "node": "¿Scan terminado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenVAS - Obtener Reporte1": {
+      "main": [
+        [
+          {
+            "node": "📋 Generar Reporte Final2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Generar Reporte Final2": {
+      "main": [
+        [
+          {
+            "node": "Notificación - Procesando",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preparar filas para DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Preparar Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Generar Scan ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificación - Procesando": {
+      "main": [
+        []
+      ]
+    },
+    "Notificación - Esperando a OpenVAS": {
+      "main": [
+        []
+      ]
+    },
+    "Notificación - OpenVAS ejecutándose": {
+      "main": [
+        [
+          {
+            "node": "Notificación - Esperando a OpenVAS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificación- Descubrimiento de puertos": {
+      "main": [
+        []
+      ]
+    },
+    "Guardar Historial": {
+      "main": [
+        [
+          {
+            "node": "Notificación - Completado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "OpenVAS - Verificar Estado1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Scan terminado?": {
+      "main": [
+        [
+          {
+            "node": "OpenVAS - Obtener Reporte1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Esperar 5 minutos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notificación - Verificación recurrente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "daa3eb2f-dc39-42ff-8925-e2b7aafc6b15",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
+  },
+  "id": "8nxwQyT2DIJV3d7c",
+  "tags": []
+}
