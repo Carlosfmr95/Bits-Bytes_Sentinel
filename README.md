@@ -2,7 +2,7 @@
 
 **Trabajo Integrador Final — UTN FRM**  
 Tecnicatura en Ciberseguridad — Bits & Bytes  
-Marín · Muñoz · Raia
+Marín, Agustín · Muñoz, Carlos · Raía, Sofía
 
 ---
 
