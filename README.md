@@ -107,41 +107,9 @@ La primera vez tarda entre 10 y 30 minutos porque OpenVAS descarga las bases de 
 docker compose ps
 ```
 
-Todos los servicios deben mostrar `running` o `healthy`.
+Todos los servicios deben mostrar `running` o `healthy`. Si alguno da error, correr de nuevo docker compose up -d para comprobar si no es un falso positivo.
 
-### 5 — Crear las tablas en PostgreSQL
-
-```bash
-docker compose exec postgres-scans psql -U $POSTGRES_USER -d $POSTGRES_DB -c "
-CREATE TABLE IF NOT EXISTS vulnerability_scans (
-    id               SERIAL PRIMARY KEY,
-    scan_id          VARCHAR(100),
-    fecha            TIMESTAMP,
-    host_ip          VARCHAR(50),
-    herramienta      VARCHAR(50),
-    severidad_label  VARCHAR(20),
-    puerto           VARCHAR(20),
-    servicio         VARCHAR(100),
-    version          VARCHAR(200),
-    nombre_vuln      TEXT,
-    cves             TEXT,
-    severidad_cvss   NUMERIC(4,1)
-);
-
-CREATE TABLE IF NOT EXISTS scan_history (
-    id              SERIAL PRIMARY KEY,
-    scan_id         VARCHAR(100),
-    fecha           TIMESTAMP,
-    total_hosts     INTEGER DEFAULT 0,
-    nmap_high       INTEGER DEFAULT 0,
-    nmap_medium     INTEGER DEFAULT 0,
-    nmap_low        INTEGER DEFAULT 0,
-    openvas_high    INTEGER DEFAULT 0,
-    openvas_medium  INTEGER DEFAULT 0,
-    openvas_low     INTEGER DEFAULT 0
-);
-"
-```
+### 5 — Usar schema.sql para crear la base de datos
 
 ### 6 — Importar el workflow en n8n
 
