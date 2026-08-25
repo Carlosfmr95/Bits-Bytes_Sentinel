@@ -13,6 +13,7 @@
     --border:    #1e2d3d;
     --accent:    #00d4ff;
     --accent2:   #0090cc;
+    --critical:  #ff1744;
     --high:      #ff3b5c;
     --medium:    #ffaa00;
     --low:       #00e676;
@@ -114,13 +115,17 @@
   }
   .stat-card:hover { border-color: var(--accent2); transform: translateY(-2px); }
   .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent-card, var(--accent)); opacity: 0.7; }
+  .stat-card.critical { --accent-card: var(--critical); }
   .stat-card.high   { --accent-card: var(--high); }
   .stat-card.medium { --accent-card: var(--medium); }
   .stat-card.low    { --accent-card: var(--low); }
   .stat-card.info   { --accent-card: var(--accent); }
-  .stat-card:nth-child(1){animation-delay:.05s} .stat-card:nth-child(2){animation-delay:.10s}
-  .stat-card:nth-child(3){animation-delay:.15s} .stat-card:nth-child(4){animation-delay:.20s}
+  .stat-card:nth-child(1){animation-delay:.05s}
+  .stat-card:nth-child(2){animation-delay:.10s}
+  .stat-card:nth-child(3){animation-delay:.15s}
+  .stat-card:nth-child(4){animation-delay:.20s}
   .stat-card:nth-child(5){animation-delay:.25s}
+  .stat-card:nth-child(6){animation-delay:.30s}
   .stat-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px; }
   .stat-value { font-family: var(--mono); font-size: 36px; color: var(--accent-card, #fff); line-height: 1; text-shadow: 0 0 20px currentColor; }
   .stat-sub   { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
@@ -193,6 +198,7 @@
   tbody td { padding: 10px 16px; font-family: var(--mono); font-size: 12px; color: var(--text); white-space: nowrap; }
 
   .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; letter-spacing: 0.08em; font-weight: 600; font-family: var(--mono); }
+  .badge-CRITICAL{ background: rgba(255,23,68,0.18);  color: var(--critical); border: 1px solid rgba(255,23,68,0.4); }
   .badge-HIGH    { background: rgba(255,59,92,0.15);  color: var(--high);   border: 1px solid rgba(255,59,92,0.3); }
   .badge-MEDIUM  { background: rgba(255,170,0,0.15);  color: var(--medium); border: 1px solid rgba(255,170,0,0.3); }
   .badge-LOW     { background: rgba(0,230,118,0.12);  color: var(--low);    border: 1px solid rgba(0,230,118,0.25); }
@@ -210,7 +216,7 @@
   .history-list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
   .history-item {
     background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-    padding: 12px 16px; display: grid; grid-template-columns: auto 1fr repeat(4, auto);
+    padding: 12px 16px; display: grid; grid-template-columns: auto 1fr repeat(5, auto);
     gap: 16px; align-items: center; transition: border-color 0.2s;
     cursor: pointer;
   }
@@ -545,7 +551,7 @@ const RUNNING_STATES   = new Set(['queued','discovering','port_scanning','openva
 let currentPage    = 1;
 let currentFilters = {};
 let refreshTimer   = null;
-let scanModalOpen  = false;   // compartido con modal IIFE a través de ventana
+let scanModalOpen  = false;   // shared with modal IIFE via window
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'error') {
@@ -586,7 +592,7 @@ function abbrevId(id) {
 
 function cvssBadge(v) {
   if (v == null) return '<span style="color:var(--text-dim)">—</span>';
-  const cls = v >= 7 ? 'HIGH' : v >= 4 ? 'MEDIUM' : 'LOW';
+  const cls = v >= 9 ? 'CRITICAL' : v >= 7 ? 'HIGH' : v >= 4 ? 'MEDIUM' : 'LOW';
   return `<span class="badge badge-${cls}">${v}</span>`;
 }
 
@@ -611,7 +617,7 @@ function fillSelect(id, values) {
   });
 }
 
-// ── API fetch con manejo de errores ─────────────────────────────────────────────
+// ── API fetch with error handling ─────────────────────────────────────────────
 async function apiFetch(url, options = {}) {
   const res = await fetch(url, options);
   if (!res.ok) {
@@ -704,6 +710,11 @@ async function loadStats(filters = {}) {
         <div class="stat-value">${s.total || 0}</div>
         <div class="stat-sub">${s.hosts || 0} hosts analizados</div>
       </div>
+      <div class="stat-card critical">
+        <div class="stat-label">⬤ Crítico</div>
+        <div class="stat-value">${s.critical || 0}</div>
+        <div class="stat-sub">Parchear ya</div>
+      </div>
       <div class="stat-card high">
         <div class="stat-label">⬤ Alto Riesgo</div>
         <div class="stat-value">${s.high || 0}</div>
@@ -733,7 +744,7 @@ async function loadStats(filters = {}) {
 }
 
 async function loadScans(filters = {}, page = 1) {
-  // Muestra la carga inmediata
+  // Show loading immediately
   document.getElementById('table-body').innerHTML =
     '<tr><td colspan="9"><div class="loading"><div class="spinner"></div> Cargando...</div></td></tr>';
 
@@ -774,7 +785,7 @@ async function loadScans(filters = {}, page = 1) {
       </tr>
     `).join('');
 
-    // Celda detalle expandible
+    // Expandable detail cells
     tbody.querySelectorAll('.cell-detail').forEach(cell => {
       cell.addEventListener('click', () => cell.classList.toggle('expanded'));
     });
@@ -801,6 +812,7 @@ async function loadHistory() {
         <div class="history-scan">${abbrevId(h.scan_id)}</div>
         <div class="history-fecha">${h.fecha}</div>
         <div class="history-stat" style="color:var(--accent)">${h.total_hosts}<span>hosts</span></div>
+        <div class="history-stat" style="color:var(--critical)">${(h.openvas_critical||0)}<span>crítico</span></div>
         <div class="history-stat" style="color:var(--high)">${(h.nmap_high||0)+(h.openvas_high||0)}<span>alto</span></div>
         <div class="history-stat" style="color:var(--medium)">${(h.nmap_medium||0)+(h.openvas_medium||0)}<span>medio</span></div>
         <div class="history-stat" style="color:var(--low)">${(h.nmap_low||0)+(h.openvas_low||0)}<span>bajo</span></div>
@@ -873,7 +885,7 @@ function exportCSV() {
 function startAutoRefresh() {
   stopAutoRefresh();
   refreshTimer = setInterval(() => {
-    if (scanModalOpen) return;   // no actualizar si el modal esta abierto
+    if (scanModalOpen) return;   // don't refresh while modal is open
     loadStats(currentFilters);
     loadScans(currentFilters, currentPage);
   }, AUTO_REFRESH_MS);
@@ -898,9 +910,9 @@ init();
 
 // ── Scan Modal ────────────────────────────────────────────────────────────────
 (function ScanModal() {
-  const STORAGE_KEY   = 'secscan_active_job';
+  const STORAGE_KEY   = 'sentinel_active_job';
   const POLL_MS       = 2500;
-  const MAX_AGE_MS    = 2 * 60 * 60 * 1000;  // 2 horas
+  const MAX_AGE_MS    = 2 * 60 * 60 * 1000;  // 2 hours
 
   // DOM
   const overlay      = document.getElementById('scanOverlay');
@@ -949,7 +961,7 @@ init();
 
   // ── Header badge ───────────────────────────────────────────────────────────
   function setHeaderActive(active) {
-    scanModalOpen = active ? true : scanModalOpen;  // Mantener true si el modal ya está abierto
+    scanModalOpen = active ? true : scanModalOpen;  // keep true if modal open
     if (active) {
       openBtn.classList.add('active-scan');
       openBtn.textContent = '● EN CURSO';
@@ -995,7 +1007,7 @@ init();
     pctLabel.textContent = data.progress + '%';
     statusTxt.textContent = data.status.toUpperCase().replace(/_/g, ' ');
 
-    // Solo renderizar nuevos logs para evitar parpadeos
+    // Only append new log lines
     data.logs.slice(renderedLogs).forEach(log => {
       const isErr = log.startsWith('[ERROR]');
       const isDim = log.startsWith('[SYSTEM]');
@@ -1047,7 +1059,7 @@ init();
   }
 
   function openModal() {
-    // Reconecta al scan activo si existe
+    // Reconnect to active scan if one exists
     const savedId = loadJob();
     if (savedId && !activeScan) {
       activeScan   = savedId;
@@ -1069,11 +1081,11 @@ init();
   }
 
   function minimizeModal() {
-    // Oculta el modal pero mantiene el scan corriendo y la posibilidad de reconectar
+    // Hide modal but keep polling alive in background
     hideCloseWarning();
     overlay.classList.add('hidden');
     scanModalOpen = false;
-    // Guardar preferencia de minimizar en lugar de cerrar para este scan
+    // Save reference so user can reopen
     if (activeScan) saveJob(activeScan);
   }
 
@@ -1110,7 +1122,7 @@ init();
 
   // ── Start scan ─────────────────────────────────────────────────────────────
   startBtn.addEventListener('click', async () => {
-    // Despues de completar un scan, el botón se reutiliza para iniciar uno nuevo
+    // After completion, button acts as reset
     if (startBtn.textContent.includes('NUEVO') || startBtn.textContent.includes('↺')) {
       resetAll();
       return;
@@ -1163,7 +1175,7 @@ init();
     resetAll();
   });
 
-  // Backdrop click — solo cierra si no hay un scan corriendo
+  // Backdrop click — only close if scan is idle
   overlay.addEventListener('click', (e) => {
     if (e.target !== overlay) return;
     if (RUNNING_STATES.has(scanStatus)) {
@@ -1187,7 +1199,7 @@ init();
     }
   });
 
-  // ── Init — reconecta si hay un scan guardado ───────────────────────────────
+  // ── Init — reconnect if there's a saved scan ───────────────────────────────
   const savedId = loadJob();
   if (savedId) {
     activeScan = savedId;

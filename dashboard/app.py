@@ -220,6 +220,7 @@ def api_stats():
             cur.execute(f"""
                 SELECT
                     COUNT(*) as total,
+                    SUM(CASE WHEN severidad_label = 'CRITICAL' THEN 1 ELSE 0 END) as critical,
                     SUM(CASE WHEN severidad_label = 'HIGH'   THEN 1 ELSE 0 END) as high,
                     SUM(CASE WHEN severidad_label = 'MEDIUM' THEN 1 ELSE 0 END) as medium,
                     SUM(CASE WHEN severidad_label = 'LOW'    THEN 1 ELSE 0 END) as low,
@@ -232,6 +233,7 @@ def api_stats():
 
             cur.execute(f"""
                 SELECT host_ip,
+                    SUM(CASE WHEN severidad_label = 'CRITICAL' THEN 1 ELSE 0 END) as critical,
                     SUM(CASE WHEN severidad_label = 'HIGH'   THEN 1 ELSE 0 END) as high,
                     SUM(CASE WHEN severidad_label = 'MEDIUM' THEN 1 ELSE 0 END) as medium,
                     SUM(CASE WHEN severidad_label = 'LOW'    THEN 1 ELSE 0 END) as low,
@@ -254,7 +256,7 @@ def api_history():
             cur.execute("""
                 SELECT id, scan_id, fecha, total_hosts,
                        nmap_high, nmap_medium, nmap_low,
-                       openvas_high, openvas_medium, openvas_low
+                       openvas_critical, openvas_high, openvas_medium, openvas_low
                 FROM scan_history
                 ORDER BY fecha DESC
                 LIMIT 20
@@ -295,7 +297,7 @@ def api_export():
         mimetype="text/csv",
         headers={
             "Content-Disposition": (
-                f"attachment; filename=secscan_export_"
+                f"attachment; filename=sentinel_export_"
                 f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
             )
         },

@@ -3,6 +3,7 @@ import select
 import socket
 import logging
 import datetime
+import time
 import xml.etree.ElementTree as ET
 from flask import Flask, jsonify, request
 
@@ -24,20 +25,36 @@ PORT_LIST_ALL_TCP = "33d0cd82-57c6-11e1-8ed1-406186ea4fc5"
 ALLOWED_SCAN_TYPES = {"quick", "full"}
 
 
-def read_response(sock, timeout=2):
+def read_response(sock, timeout=60):
+    """Lee la respuesta GMP hasta que el XML acumulado parsea completo,
+    o hasta agotar `timeout` seg. Devuelve apenas el elemento está cerrado
+    (no espera un silencio fijo, así que es rápido)."""
+    deadline = time.time() + timeout
     buf = bytearray()
     while True:
-        r, _, _ = select.select([sock], [], [], timeout)
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            break
+        r, _, _ = select.select([sock], [], [], remaining)
         if not r:
             break
         chunk = sock.recv(65536)
         if not chunk:
             break
         buf.extend(chunk)
-    return buf.decode('utf-8')
+        try:
+            text = buf.decode('utf-8')
+        except UnicodeDecodeError:
+            continue          # cortó un carácter multibyte, seguí leyendo
+        try:
+            ET.fromstring(text)
+            return text       # XML completo → devolvemos YA
+        except ET.ParseError:
+            continue          # todavía incompleto, seguí leyendo
+    return buf.decode('utf-8', errors='ignore')
 
 
-def gmp_cmd(xml_str):
+def gmp_cmd(xml_str, read_timeout=2):
     """Abre conexión, autentica, ejecuta un comando y devuelve el Element XML."""
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.settimeout(60)
@@ -57,11 +74,12 @@ def gmp_cmd(xml_str):
             raise Exception(f"Auth fallida: {auth_resp[:200]}")
 
         s.sendall(xml_str.encode())
-        resp = read_response(s)
+        resp = read_response(s, timeout=read_timeout)
+        if not resp.strip():
+            raise Exception("Respuesta GMP vacía (posible timeout de lectura)")
         return ET.fromstring(resp)
     finally:
         s.close()
-
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -224,7 +242,8 @@ def get_report_detail(report_id):
     try:
         resp = gmp_cmd(
             f"<get_reports report_id='{report_id}' details='1' "
-            f"filter='min_qod=70 rows=200'/>"
+            f"filter='min_qod=70 rows=200'/>",
+            read_timeout=60,
         )
         resultados = []
 
@@ -244,7 +263,8 @@ def get_report_detail(report_id):
             except ValueError:
                 sev_float = 0.0
 
-            if sev_float >= 7.0:   nivel = "HIGH"
+            if sev_float >= 9.0:   nivel = "CRITICAL"
+            elif sev_float >= 7.0: nivel = "HIGH"
             elif sev_float >= 4.0: nivel = "MEDIUM"
             elif sev_float > 0:    nivel = "LOW"
             else:                  nivel = "INFO"
@@ -263,6 +283,7 @@ def get_report_detail(report_id):
 
         resultados.sort(key=lambda x: x["severidad_cvss"], reverse=True)
         resumen = {
+            "critical": sum(1 for r in resultados if r["severidad_label"] == "CRITICAL"),
             "high":   sum(1 for r in resultados if r["severidad_label"] == "HIGH"),
             "medium": sum(1 for r in resultados if r["severidad_label"] == "MEDIUM"),
             "low":    sum(1 for r in resultados if r["severidad_label"] == "LOW"),
