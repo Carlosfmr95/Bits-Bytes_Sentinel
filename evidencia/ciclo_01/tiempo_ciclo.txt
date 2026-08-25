@@ -1,0 +1,6 @@
+hora_disparo      : 15:52
+persistencia_db   : 2026-08-23 16:37:01
+tiempo_de_ciclo   : 45 min 1 s
+
+El tiempo de ciclo esta cuantizado por el intervalo de polling (5 min) y es una
+cota superior. La duracion del escaneo en si esta en tiempos.txt (reloj de OpenVAS).

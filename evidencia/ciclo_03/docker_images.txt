@@ -1,0 +1,24 @@
+CONTAINER                        REPOSITORY                                                       TAG                 PLATFORM            IMAGE ID            SIZE                CREATED
+dashboard                        sentinel-dashboard                                               latest              linux/amd64         7f203a4298fe        151MB               27 hours ago
+gvm-api                          sentinel-gvm-api                                                 latest              linux/amd64         549caa73f23a        140MB               24 hours ago
+n8n                              n8nio/n8n                                                        latest              linux/amd64         283b350bc4e7        1.17GB              292 years ago
+nmap-api                         sentinel-nmap-api                                                latest              linux/amd64         a03d44850b6a        170MB               24 hours ago
+postgres-scans                   postgres                                                         16-alpine           linux/amd64         108b27c919e6        276MB               292 years ago
+sentinel-cert-bund-data-1        registry.community.greenbone.net/community/cert-bund-data        latest              linux/amd64         6464cef1ce2e        111MB               292 years ago
+sentinel-configure-openvas-1     registry.community.greenbone.net/community/openvas-scanner       stable              linux/amd64         dc575a190029        382MB               292 years ago
+sentinel-data-objects-1          registry.community.greenbone.net/community/data-objects          latest              linux/amd64         fe0b78f711c5        33.1MB              292 years ago
+sentinel-dfn-cert-data-1         registry.community.greenbone.net/community/dfn-cert-data         latest              linux/amd64         60853c3cf0c1        56.4MB              292 years ago
+sentinel-gpg-data-1              registry.community.greenbone.net/community/gpg-data              latest              linux/amd64         a047061b1f42        4.43MB              292 years ago
+sentinel-gsa-1                   registry.community.greenbone.net/community/gsa                   stable              linux/amd64         7bdce8926752        129MB               292 years ago
+sentinel-gvm-tools-1             registry.community.greenbone.net/community/gvm-tools             latest              linux/amd64         8c634554f191        172MB               292 years ago
+sentinel-gvmd-1                  registry.community.greenbone.net/community/gvmd                  stable              linux/amd64         d8f008f7c335        680MB               292 years ago
+sentinel-notus-data-1            registry.community.greenbone.net/community/notus-data            latest              linux/amd64         4014d7b22d99        37MB                292 years ago
+sentinel-openvas-1               registry.community.greenbone.net/community/openvas-scanner       stable              linux/amd64         dc575a190029        382MB               292 years ago
+sentinel-openvasd-1              registry.community.greenbone.net/community/openvas-scanner       stable              linux/amd64         dc575a190029        382MB               292 years ago
+sentinel-ospd-openvas-1          registry.community.greenbone.net/community/ospd-openvas          stable              linux/amd64         e7d419e46ce6        743MB               292 years ago
+sentinel-pg-gvm-1                registry.community.greenbone.net/community/pg-gvm                stable              linux/amd64         a32932a682b9        517MB               292 years ago
+sentinel-pg-gvm-migrator-1       registry.community.greenbone.net/community/pg-gvm-migrator       stable              linux/amd64         e25091cc292b        692MB               292 years ago
+sentinel-redis-server-1          registry.community.greenbone.net/community/redis-server          latest              linux/amd64         016182c218c2        139MB               292 years ago
+sentinel-report-formats-1        registry.community.greenbone.net/community/report-formats        latest              linux/amd64         ad86c4741f5a        6.18MB              292 years ago
+sentinel-scap-data-1             registry.community.greenbone.net/community/scap-data             latest              linux/amd64         917ec5406ee4        1.27GB              292 years ago
+sentinel-vulnerability-tests-1   registry.community.greenbone.net/community/vulnerability-tests   latest              linux/amd64         5da6d9cf80e7        1.96GB              292 years ago

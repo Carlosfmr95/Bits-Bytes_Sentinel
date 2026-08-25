@@ -1,0 +1,17 @@
+resultados sin filtro     :   635   (1108 elementos result)
+resultados con min_qod=70 :   160   (192 elementos result)
+excluidos por el umbral   :   475   (74.8 %)
+informativos (Log)        :    91
+HALLAZGOS (>= Low)        :    69
+
+distribucion de QoD sobre el reporte sin filtro:
+  QoD   30 :   473
+  QoD   50 :     2
+  QoD   70 :     9
+  QoD   80 :    99
+  QoD   95 :    10
+  QoD   97 :     1
+  QoD   98 :    23
+  QoD   99 :    18
+
+Regenerado localmente el 2026-08-24 tras la recaptura con min_qod=0.

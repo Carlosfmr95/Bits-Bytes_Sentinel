@@ -1,0 +1,15 @@
+Expanded display is on.
+-[ RECORD 1 ]----+-------------------------------------
+id               | 3
+fecha            | 2026-08-23 18:32:01
+total_hosts      | 1
+nmap_high        | 4
+nmap_medium      | 13
+nmap_low         | 13
+openvas_high     | 9
+openvas_medium   | 39
+openvas_low      | 6
+created_at       | 2026-08-23 21:32:01.308941
+scan_id          | 60fe8638-cc03-48dc-8ed3-f0e5a0d2e1ea
+openvas_critical | 15
+

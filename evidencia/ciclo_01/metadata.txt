@@ -1,0 +1,10 @@
+ciclo            : 1
+capturado        : 2026-08-23T20:34:27+00:00
+scan_id          : 55d59116-1fe4-4b00-b91d-7cc3bf9ff04f
+report_id        : 03a26a89-1f7c-4f03-929d-90558e7878e5
+ejecucion n8n    : 48  (su duracion NO es el tiempo de ciclo)
+hora de disparo  : 15:52
+feed             : congelado — ver gmp_feeds.xml
+
+PENDIENTE A MANO : descargar el log de la ejecucion 48 desde la UI
+                   de n8n y guardarlo como n8n_execution_48.json

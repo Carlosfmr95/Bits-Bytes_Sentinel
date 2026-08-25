@@ -1,0 +1,9 @@
+ severidad_label |  n  
+-----------------+-----
+ CRITICAL        |  15
+ HIGH            |   9
+ MEDIUM          |  39
+ LOW             |   6
+ INFO            | 123
+(5 rows)
+

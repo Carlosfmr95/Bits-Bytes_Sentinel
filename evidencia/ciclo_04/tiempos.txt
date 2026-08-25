@@ -1,0 +1,8 @@
+scan_start : 2026-08-23T22:54:23Z
+scan_end   : 2026-08-23T23:34:57Z
+duracion   : 40 min 34 s  (2434 s)
+
+Este es el reloj de OpenVAS (resolucion: segundos).
+El wall-clock de la ejecucion de n8n se anota a mano y esta
+cuantizado a 5 min por el intervalo de polling. Son magnitudes
+distintas: reportarlas por separado.

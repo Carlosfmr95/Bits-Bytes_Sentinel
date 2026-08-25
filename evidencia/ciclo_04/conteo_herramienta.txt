@@ -1,0 +1,6 @@
+ herramienta | filas | puertos_distintos 
+-------------+-------+-------------------
+ nmap        |    30 |                30
+ openvas     |   191 |                26
+(2 rows)
+
