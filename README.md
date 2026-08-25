@@ -1,8 +1,8 @@
 # Sentinel — Sistema Automatizado de Escaneo de Vulnerabilidades
 
 **Trabajo Integrador Final — UTN FRM**  
-Tecnicatura en Ciberseguridad — Bits & Bytes  
-Marín, Agustín · Muñoz, Carlos · Raía, Sofía
+Tecnicatura Universitaria en Programación — Bits & Bytes  
+Marín, Agustín · Muñoz, Carlos · Raia, Sofía
 
 ---
 
